@@ -8,7 +8,7 @@ import time
 # 3. bootstrap
 # 4. deploy
 
-REBOOT_DELAY = 17 # 17 seconds
+REBOOT_DELAY = 30 # 30 seconds
 
 @task
 def test(ctx):
@@ -53,6 +53,9 @@ def create_user(c):
     c.run('mkdir -p /home/ubuntu/.ssh/')
     c.run('cp /root/.ssh/authorized_keys /home/ubuntu/.ssh/authorized_keys && chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys')
 
+def create_cloth_service(c):
+    c.put('cloth.service', '/etc/systemd/system/cloth.service')
+
 def upgrade_server(c):
     print("Upgrading server")
     # Run all ubuntu commands non interactively
@@ -68,7 +71,7 @@ def upgrade_server(c):
     # Reboot
     c.run('reboot')
 
-def bootstrap_server(c):
+def bootstrap_webserver(c):
     print("Bootstrapping server")
     # Install Git
     c.run('apt-get --yes install git')
@@ -78,34 +81,45 @@ def bootstrap_server(c):
 
     create_user(c)
 
-def create_application(c):
-    pass
+    create_cloth_service(c)
 
 @task
 def bootstrap(ctx):
-    # This will update the server
-    # Install the needed packages.
-    #    python, virutalenv, git
-    # Create the ubuntu user
-    # Create the application folder structure
-    # Daemonize the application
-
     validate_has_stage(ctx)
 
-#    for connection in Group(*ctx.config.hosts):
-#        upgrade_server(connection)
+    for connection in Group(*ctx.config.hosts):
+        upgrade_server(connection)
 
-#    time.sleep(REBOOT_DELAY)
+    time.sleep(REBOOT_DELAY)
 
     for connection in Group(*ctx.config.hosts):
-        bootstrap_server(connection)
+        bootstrap_webserver(connection)
 
-    for connection in Group(*ctx.config.hosts):
-        # Here I want to log in as another user.
-        create_application(connection)
+def create_application(c):
+    # Copy program
+    c.put('cloth.py', 'cloth.py')
+    c.put('requirements.txt', 'requirements.txt')
+
+    # Create virtual environment
+    c.run('rm -rf env')
+    c.run('virtualenv -p python3 env')
+    c.run('./env/bin/pip3 install -r requirements.txt')
+
+
+# Connecting to the following url works
+# http://45.77.138.227:5000/
+# when we are running flask using the following command.
+# FLASK_APP=cloth.py ./env/bin/flask run --host=0.0.0.0
+
+# Connecting to the following url works
+# http://45.77.138.227:8000/
+# when we are running Gunicorn using the following command.
+# ./env/bin/gunicorn cloth:app --bind=0.0.0.0:8000
 
 @task
 def deploy(ctx):
     validate_has_stage(ctx)
 
-    ctx.run("echo Deploying {}".format(ctx.config.stage))
+    print("Deploying {}".format(ctx.config.stage))
+    for connection in Group(*ctx.config.hosts, user='ubuntu'):
+        create_application(connection)

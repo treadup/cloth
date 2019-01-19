@@ -1,0 +1,13 @@
+[Unit]
+Description=Cloth web server service
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu
+Environment="PATH=/home/ubuntu/env/bin"
+ExecStart=/home/ubuntu/env/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 cloth:app
+
+[Install]
+WantedBy=multi-user.target
