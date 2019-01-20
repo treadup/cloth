@@ -53,6 +53,9 @@ def create_user(c):
     c.run('mkdir -p /home/ubuntu/.ssh/')
     c.run('cp /root/.ssh/authorized_keys /home/ubuntu/.ssh/authorized_keys && chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys')
 
+    # Allow systemd user services when the user is not logged in
+    c.run('loginctl enable-linger ubuntu')
+
 def create_cloth_service(c):
     c.put('cloth.service', '/etc/systemd/system/cloth.service')
 
