@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloth web server systemd user service
+After=network.target
+
+[Service]
+WorkingDirectory=/home/ubuntu
+Environment="PATH=/home/ubuntu/env/bin"
+ExecStart=/home/ubuntu/env/bin/gunicorn --log-level debug --workers 3 --bind 0.0.0.0:8000 cloth:app
+Restart=always
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

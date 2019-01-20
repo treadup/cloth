@@ -8,7 +8,7 @@ import time
 # 3. bootstrap
 # 4. deploy
 
-REBOOT_DELAY = 30 # 30 seconds
+REBOOT_DELAY = 60 # 60 seconds
 
 @task
 def test(ctx):
@@ -56,8 +56,11 @@ def create_user(c):
     # Allow systemd user services when the user is not logged in
     c.run('loginctl enable-linger ubuntu')
 
-def create_cloth_service(c):
-    c.put('cloth.service', '/etc/systemd/system/cloth.service')
+def create_cloth_user_service(c):
+    c.run('mkdir -p /home/ubuntu/.config/systemd/user/')
+    c.run('chown -R ubuntu:ubuntu /home/ubuntu/.config/')
+    c.put('cloth-user.service', '/home/ubuntu/.config/systemd/user/cloth.service')
+    c.run('chown ubuntu:ubuntu /home/ubuntu/.config/systemd/user/cloth.service')
 
 def upgrade_server(c):
     print("Upgrading server")
@@ -74,17 +77,21 @@ def upgrade_server(c):
     # Reboot
     c.run('reboot')
 
-def bootstrap_webserver(c):
-    print("Bootstrapping server")
+def install_packages(c):
     # Install Git
     c.run('apt-get --yes install git')
 
     # Install virtualenv
     c.run('apt-get --yes install virtualenv')
 
+def bootstrap_webserver(c):
+    print("Bootstrapping server")
+
+    install_packages(c)
+
     create_user(c)
 
-    create_cloth_service(c)
+    create_cloth_user_service(c)
 
 @task
 def bootstrap(ctx):
@@ -99,6 +106,7 @@ def bootstrap(ctx):
         bootstrap_webserver(connection)
 
 def create_application(c):
+
     # Copy program
     c.put('cloth.py', 'cloth.py')
     c.put('requirements.txt', 'requirements.txt')
@@ -107,6 +115,12 @@ def create_application(c):
     c.run('rm -rf env')
     c.run('virtualenv -p python3 env')
     c.run('./env/bin/pip3 install -r requirements.txt')
+
+    # Enable service
+    c.run('systemctl --user enable cloth')
+
+    # Start service
+    c.run('systemctl --user start cloth')
 
 
 # Connecting to the following url works
